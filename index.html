@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tablero OSA &amp; Quiebres · Unilever v3</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+  :root{
+    --bg:#F2F4F8;--panel:#FFFFFF;--panel2:#F7F9FC;--line:#E2E8F0;
+    --txt:#1A1D2E;--mut:#6B7A99;--accent:#1F36C7;--accent2:#00B2E3;--accent-glow:rgba(0,178,227,0.18);
+    --green:#00C853;--green-dim:rgba(0,200,83,0.1);
+    --red:#E53935;--red-dim:rgba(229,57,53,0.08);--amber:#F9A825;--blue:#1565C0;
+    --font:'Inter',system-ui,-apple-system,'Segoe UI',sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--txt);font-family:var(--font);font-size:13px;
+    min-height:100vh;padding:0;
+    background-image:
+      radial-gradient(ellipse at 20% 0%,rgba(31,54,199,0.04),transparent 50%),
+      radial-gradient(ellipse at 80% 0%,rgba(0,178,227,0.04),transparent 45%)}
+  a{color:var(--accent2)}
+  .topbar{
+    background:linear-gradient(135deg,#1F36C7 0%,#1A2FBB 30%,#0D1B9A 60%,#00B2E3 100%);
+    background-size:200% 200%;animation:gradShift 8s ease infinite;
+    padding:22px 36px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:14px;
+    box-shadow:0 6px 40px rgba(31,54,199,0.25),0 2px 8px rgba(0,0,0,0.1)}
+  @keyframes gradShift{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
+  .topbar .brand{display:flex;align-items:center;gap:16px}
+  .topbar .logo{width:50px;height:50px;border-radius:14px;background:white;display:flex;align-items:center;justify-content:center;
+    box-shadow:0 4px 16px rgba(0,0,0,0.2);transition:transform .3s}
+  .topbar .logo:hover{transform:rotate(-5deg) scale(1.05)}
+  .topbar .logo svg{width:34px;height:34px}
+  .topbar h1{font-size:22px;font-weight:900;letter-spacing:0.3px;color:#fff;text-shadow:0 2px 10px rgba(0,0,0,0.2)}
+  .topbar .sub{color:rgba(255,255,255,0.7);font-size:11px;letter-spacing:1.8px;text-transform:uppercase;margin-top:3px;font-weight:600}
+  .topbar #period{color:#fff;font-size:11px;letter-spacing:1px;text-transform:uppercase;font-weight:700;
+    background:rgba(255,255,255,0.18);padding:8px 18px;border-radius:24px;backdrop-filter:blur(8px);
+    border:1px solid rgba(255,255,255,0.2);transition:.2s}
+  .topbar #period:hover{background:rgba(255,255,255,0.28)}
+  .main-content{padding:28px 36px 80px;max-width:1440px;margin:0 auto}
+  h1{font-size:22px;font-weight:700;letter-spacing:.5px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:24px 28px;margin-top:22px;
+    box-shadow:0 1px 3px rgba(0,0,0,0.04),0 4px 24px rgba(0,0,0,0.03);
+    transition:transform .2s,box-shadow .2s;position:relative;overflow:hidden}
+  .card:hover{transform:translateY(-2px);box-shadow:0 8px 32px rgba(31,54,199,0.08),0 2px 8px rgba(0,0,0,0.06)}
+  .card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;
+    background:linear-gradient(90deg,var(--accent),var(--accent2));border-radius:18px 18px 0 0;opacity:0;transition:.3s}
+  .card:hover::before{opacity:1}
+  .card-title{font-size:12px;letter-spacing:1.8px;text-transform:uppercase;color:var(--accent);
+    margin-bottom:18px;display:flex;align-items:center;gap:10px;font-weight:700}
+  .card-title::before{content:'';width:20px;height:3px;background:linear-gradient(90deg,var(--accent),var(--accent2));border-radius:2px}
+  #drop{border:2.5px dashed rgba(31,54,199,0.25);border-radius:18px;padding:36px;text-align:center;
+    transition:all .3s ease;cursor:pointer;background:rgba(31,54,199,0.02)}
+  #drop.hover{border-color:var(--accent2);background:rgba(0,178,227,0.06);transform:scale(1.005);
+    box-shadow:0 0 0 6px rgba(0,178,227,0.08)}
+  #drop h3{font-size:16px;margin-bottom:10px;font-weight:700;color:var(--txt)}
+  #drop p{color:var(--mut);font-size:12px;line-height:1.8}
+  .fstat{display:flex;gap:18px;justify-content:center;margin-top:18px;flex-wrap:wrap}
+  .fpill{font-size:11px;padding:8px 18px;border-radius:24px;border:1.5px solid var(--line);color:var(--mut);
+    font-weight:600;transition:.3s;background:var(--panel2)}
+  .fpill.ok{border-color:var(--green);color:var(--green);background:var(--green-dim);box-shadow:0 0 16px rgba(0,200,83,0.12)}
+  .filters{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:18px}
+  .filters label{display:block;font-size:10px;letter-spacing:1.4px;text-transform:uppercase;color:var(--mut);margin-bottom:7px;font-weight:700}
+  select{width:100%;background:#fff;color:var(--txt);border:1.5px solid var(--line);
+    border-radius:12px;padding:11px 14px;font-family:var(--font);font-size:12px;outline:none;transition:.2s;
+    -webkit-appearance:none;appearance:none;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236B7A99' stroke-width='2.5'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat:no-repeat;background-position:right 14px center;box-shadow:0 1px 3px rgba(0,0,0,0.04)}
+  select:focus{border-color:var(--accent);box-shadow:0 0 0 4px var(--accent-glow)}
+  select option{background:#fff;color:var(--txt)}
+  .reset{margin-top:18px;background:#fff;border:1.5px solid var(--line);color:var(--mut);
+    border-radius:12px;padding:10px 22px;cursor:pointer;font-family:var(--font);font-size:11px;font-weight:700;
+    transition:.2s;letter-spacing:0.5px;box-shadow:0 1px 3px rgba(0,0,0,0.04)}
+  .reset:hover{border-color:var(--red);color:var(--red);background:var(--red-dim);transform:translateY(-1px)}
+  .kpis{display:grid;grid-template-columns:1fr 1fr;gap:22px;margin-top:22px}
+  .kpi{border-radius:20px;padding:30px 32px;position:relative;overflow:hidden;border:none;transition:transform .3s,box-shadow .3s}
+  .kpi:hover{transform:translateY(-4px)}
+  .kpi .lab{font-size:13px;letter-spacing:2.5px;text-transform:uppercase;font-weight:800}
+  .kpi .val{font-size:56px;font-weight:900;line-height:1.1;margin-top:12px}
+  .kpi .meta{font-size:11px;margin-top:10px;font-weight:600}
+  .kpi.osa{background:linear-gradient(135deg,#1F36C7 0%,#2541D4 40%,#3B6CE7 100%);
+    box-shadow:0 10px 40px rgba(31,54,199,0.3),0 4px 12px rgba(31,54,199,0.15)}
+  .kpi.osa:hover{box-shadow:0 16px 48px rgba(31,54,199,0.35),0 6px 16px rgba(31,54,199,0.2)}
+  .kpi.osa .val{color:#fff;text-shadow:0 2px 20px rgba(255,255,255,0.25)}
+  .kpi.osa .lab{color:rgba(255,255,255,0.92)}
+  .kpi.osa .meta{color:rgba(255,255,255,0.7)}
+  .kpi.q{background:linear-gradient(135deg,#C62828 0%,#D32F2F 40%,#EF5350 100%);
+    box-shadow:0 10px 40px rgba(198,40,40,0.25),0 4px 12px rgba(198,40,40,0.12)}
+  .kpi.q:hover{box-shadow:0 16px 48px rgba(198,40,40,0.3),0 6px 16px rgba(198,40,40,0.18)}
+  .kpi.q .val{color:#fff;text-shadow:0 2px 20px rgba(255,255,255,0.2)}
+  .kpi.q .lab{color:rgba(255,255,255,0.92)}
+  .kpi.q .meta{color:rgba(255,255,255,0.7)}
+  .kpi::after{content:'';position:absolute;right:-50px;top:-50px;width:160px;height:160px;border-radius:50%;opacity:.1;background:white}
+  .kpi::before{content:'';position:absolute;left:-30px;bottom:-30px;width:120px;height:120px;border-radius:50%;opacity:.07;background:white}
+  table{width:100%;border-collapse:separate;border-spacing:0;font-size:12px}
+  th,td{padding:11px 14px;text-align:right;white-space:nowrap}
+  th{color:var(--accent);font-weight:700;font-size:10px;letter-spacing:1px;text-transform:uppercase;
+    position:sticky;top:0;background:#fff;border-bottom:2px solid var(--accent);z-index:2}
+  th:first-child,td:first-child{text-align:left}
+  td{border-bottom:1px solid var(--line)}
+  .scroll{overflow-x:auto;border-radius:14px;border:1px solid var(--line);background:#fff}
+  tbody tr{transition:all .15s}
+  tbody tr:nth-child(even){background:var(--panel2)}
+  tbody tr:hover{background:rgba(31,54,199,0.04)}
+  .exp{cursor:pointer;user-select:none}
+  .exp .tw{display:inline-block;width:16px;color:var(--accent);transition:.2s;font-size:14px;font-weight:700}
+  .lvl-name{display:inline-flex;align-items:center;gap:8px}
+  .badge{font-size:9px;padding:3px 10px;border-radius:8px;border:1px solid rgba(31,54,199,0.2);
+    color:var(--accent);letter-spacing:.5px;font-weight:700;background:rgba(31,54,199,0.05)}
+  .osaC{color:var(--blue);font-weight:700} .qC{color:var(--red);font-weight:700} .numC{color:#E67E00;font-weight:700}
+  .dim{color:var(--mut)}
+  .topgrid{display:grid;grid-template-columns:1fr 1fr;gap:22px;margin-top:22px}
+  .rank{display:inline-block;width:24px;color:var(--accent);text-align:right;margin-right:10px;font-weight:800;font-size:13px}
+  .empty{color:var(--mut);text-align:center;padding:48px;font-size:13px;font-weight:500}
+  .note{font-size:10px;color:var(--mut);margin-top:14px;line-height:1.8;font-weight:500;
+    padding:10px 14px;background:var(--panel2);border-radius:10px;border-left:3px solid var(--accent2)}
+  .pname{max-width:280px;overflow:hidden;text-overflow:ellipsis;display:inline-block;vertical-align:bottom}
+  .hidden{display:none!important}
+  @keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+  .card,.kpi{animation:fadeUp .5s ease both}
+  .card:nth-child(2){animation-delay:.05s}
+  .card:nth-child(3){animation-delay:.1s}
+  @media(max-width:760px){.kpis,.topgrid{grid-template-columns:1fr} .main-content{padding:18px 16px 60px} .topbar{padding:16px 18px}}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand">
+    <div class="logo">
+      <svg viewBox="0 0 50 50" xmlns="http://www.w3.org/2000/svg">
+        <text x="10" y="38" font-size="38" font-weight="800" fill="#1F36C7" font-family="Inter,Arial,sans-serif">U</text>
+      </svg>
+    </div>
+    <div>
+      <h1>TABLERO OSA &amp; QUIEBRES</h1>
+      <div class="sub">On-Shelf Availability · Control de Quiebres · Unilever</div>
+    </div>
+  </div>
+  <div id="period">— sin datos —</div>
+</div>
+<div class="main-content">
+
+<div class="card" id="loaderCard">
+  <div class="card-title">Cargar template</div>
+  <div id="drop">
+    <h3>Arrastrá los 2 archivos acá <span class="dim">·</span> o hacé click</h3>
+    <p>Subí <b>Quiebres</b> (.xlsx, hoja "Quiebres") y <b>OSA</b> (.xlsx, hoja "OSA").<br>
+    OSA necesita columnas: <code>[AverageQuiebre]</code> · <code>[SumSemanaMes]</code> · <code>[NroMes]</code> · <code>[PuntoDeVentaDesc]</code><br>
+    Podés subir ambos archivos a la vez. Todo se procesa en tu navegador.</p>
+    <input type="file" id="fileInput" multiple accept=".xlsx,.xls" class="hidden">
+    <div class="fstat">
+      <span class="fpill" id="pillQ">Quiebres: pendiente</span>
+      <span class="fpill" id="pillO">OSA: pendiente</span>
+    </div>
+  </div>
+  <div id="loadMsg" style="margin-top:14px;font-size:12px;line-height:1.7;font-weight:500;display:none"></div>
+</div>
+
+<div id="dash" class="hidden">
+  <div class="card">
+    <div class="card-title">Filtros</div>
+    <div class="filters">
+      <div><label>Cluster</label><select id="fCluster"></select></div>
+      <div><label>Cliente</label><select id="fCliente"></select></div>
+      <div><label>Negocio</label><select id="fNegocio"></select></div>
+      <div><label>Categoría</label><select id="fCategoria"></select></div>
+      <div><label>Semana</label><select id="fSemana"></select></div>
+    </div>
+    <button class="reset" id="btnReset">↺ Limpiar filtros</button>
+  </div>
+
+  <div class="kpis">
+    <div class="kpi osa"><div class="lab">% OSA</div><div class="val" id="kpiOsa">—</div><div class="meta" id="kpiOsaMeta"></div></div>
+    <div class="kpi q"><div class="lab">% Quiebres</div><div class="val" id="kpiQ">—</div><div class="meta" id="kpiQMeta"></div></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Detalle jerárquico semanal — Cliente › Punto de Venta › Categoría › SKU</div>
+    <div class="scroll"><table id="treeTable"><thead id="treeHead"></thead><tbody id="treeBody"></tbody></table></div>
+    <div class="note">Tocá una fila para expandir. Al abrir por <b>SKU (Producto)</b>, la segunda métrica muestra la <b>cantidad de quiebres</b>. Las tiendas se muestran por nombre de Punto de Venta.</div>
+  </div>
+
+  <div class="topgrid">
+    <div class="card">
+      <div class="card-title">Top 10 peores productos por % OSA (mes cerrado)</div>
+      <div class="scroll"><table id="t1"></table></div>
+      <div class="note">Excluye productos cuyos quiebres superen el 50% de sus quiebres posibles del mes.</div>
+    </div>
+    <div class="card">
+      <div class="card-title">Top 10 productos con más quiebres (mes cerrado)</div>
+      <div class="scroll"><table id="t2"></table></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Top 10 puntos de venta con peor OSA (mes cerrado)</div>
+      <div class="scroll"><table id="t3"></table></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Top 10 puntos de venta con más quiebres (mes cerrado)</div>
+      <div class="scroll"><table id="t4"></table></div>
+    </div>
+  </div>
+</div>
+
+</div>
+<script>
+/* ============================================================
+   MODELO DE DATOS  v3 — columnas nuevas del export Power BI
+   --- OSA (archivo OSA) ---
+   Columnas relevantes:
+     Dim_Producto[ProductEAN]          → EAN principal del producto
+     Dim_Producto[EAN]                 → EAN alternativo (fallback)
+     Dim_PuntoDeVenta[Cluster]         → Cluster
+     Dim_Producto[Negocio]             → Negocio
+     Dim_Producto[Categoria]           → Categoría
+     Dim_Producto[SKU]                 → SKU / nombre producto
+     Dim_PuntoDeVenta[PuntoDeVenta_Id] → ID PDV (no usado en tabla)
+     Dim_PuntoDeVenta[PuntoDeVentaDesc]→ Nombre de la tienda ← NUEVO
+     Dim_PuntoDeVenta[EPV]             → EPV
+     Dim_PuntoDeVenta[Nodo]            → Nodo
+     Fact_Product_Detail[Motivo_LossTree_v3] → Motivo quiebre
+     LocalDateTable_...[Mes]           → Mes textual (ej: "Enero")
+     LocalDateTable_...[NroMes]        → Nro de mes (1-12)
+     Dim_Date[Fecha]                   → Fecha
+     Dim_PuntoDeVenta[Cliente]         → Cliente
+     Dim_PuntoDeVenta[UnicoSucursal]   → Único/Sucursal
+     Fact_Product_Detail[Accion]       → Acción
+     [Suminventario_uni]               → Suma inventario
+     [AverageQuiebre]                  → 0 o 1 por fila (igual que antes)
+     [SumSemanaMes]                    → Número de semana dentro del mes
+
+   %OSA = SUM(AverageQuiebre=1) / COUNT(filas)
+   Semana = NroMes (para ordenar) + SumSemanaMes (para mostrar)
+   Identificador temporal visible: "Mes Sem N"
+
+   --- QUIEBRES (archivo Quiebres) ---
+   Sin cambios respecto a v2.
+   ============================================================ */
+const S = { osa:null, q:null };
+let DATA = null;
+const fmtPct = v => (v==null||isNaN(v))?'—':v.toFixed(1)+'%';
+const fmtInt = v => (v==null||isNaN(v))?'—':Math.round(v).toLocaleString('es-AR');
+
+/* ---------- File loading ---------- */
+const drop=document.getElementById('drop'), input=document.getElementById('fileInput');
+drop.onclick=()=>input.click();
+['dragover','dragenter'].forEach(e=>drop.addEventListener(e,ev=>{ev.preventDefault();drop.classList.add('hover')}));
+['dragleave','drop'].forEach(e=>drop.addEventListener(e,ev=>{ev.preventDefault();drop.classList.remove('hover')}));
+drop.addEventListener('drop',ev=>handleFiles(ev.dataTransfer.files));
+input.addEventListener('change',ev=>handleFiles(ev.target.files));
+
+function handleFiles(files){
+  [...files].forEach(f=>{
+    const r=new FileReader();
+    r.onload=e=>{
+      const wb=XLSX.read(e.target.result,{type:'array'});
+      const names=wb.SheetNames.map(n=>n.toLowerCase());
+      console.log('[handleFiles] archivo:', f.name, '| hojas:', wb.SheetNames);
+      // Detección por nombre de hoja primero, luego por nombre de archivo
+      const hasQ = names.some(n=>n.includes('quiebre'));
+      const hasO = names.some(n=>n==='osa'||n.includes(' osa')||n.startsWith('osa'));
+      if(hasQ && hasO){
+        // Archivo único con ambas hojas
+        parseQuiebres(wb); parseOSA(wb);
+      } else if(hasQ){
+        parseQuiebres(wb);
+      } else if(hasO){
+        parseOSA(wb);
+      } else {
+        // Fallback por nombre de archivo
+        if(/quiebre/i.test(f.name)) parseQuiebres(wb);
+        else parseOSA(wb);
+      }
+      tryBuild();
+    };
+    r.onerror=()=>{ document.getElementById('loadMsg').textContent='Error al leer: '+f.name; };
+    r.readAsArrayBuffer(f);
+  });
+}
+
+/* ---------- Parse OSA v3 (nuevas columnas Power BI) ----------
+   Acepta cualquiera de estos formatos de header:
+     "Dim_Producto[ProductEAN]"  →  normaliza a "productean"
+     "[ProductEAN]"              →  normaliza a "productean"
+     "ProductEAN"                →  normaliza a "productean"
+   ------------------------------------------------------------ */
+function parseOSA(wb){
+  // Detectar hoja OSA
+  const sheetName = wb.SheetNames.find(n=>n.toLowerCase()==='osa') || wb.SheetNames[0];
+  const ws = wb.Sheets[sheetName];
+  if(!ws){
+    showMsg('❌ No se encontró la hoja "OSA" en el archivo. Hojas disponibles: ' + wb.SheetNames.join(', '), true);
+    return;
+  }
+
+  const rows = XLSX.utils.sheet_to_json(ws,{header:1,defval:null});
+  if(!rows.length){ showMsg('❌ La hoja OSA está vacía.', true); return; }
+
+  // ── Encontrar fila de encabezado (la que más columnas conocidas tiene) ──
+  const KNOWN = ['averagequiebre','sumsemanames','nromes','puntodeventadesc',
+                 'productean','cluster','negocio','categoria','sku','cliente','mes'];
+  const norm = s => String(s==null?'':s).toLowerCase().replace(/[^a-z0-9]/g,'');
+  function scoreRow(r){ return r? r.reduce((s,c)=>{const v=norm(c);return s+(KNOWN.some(k=>v.includes(k))?1:0);},0) : 0; }
+
+  let hi=0, bestScore=0;
+  for(let i=0;i<Math.min(rows.length,30);i++){
+    const sc=scoreRow(rows[i]);
+    if(sc>bestScore){ bestScore=sc; hi=i; }
+  }
+
+  const hdr = rows[hi].map(h=>h==null?'':String(h).trim());
+  const normHdr = hdr.map(norm);
+
+  // Busca índice de columna por fragmento normalizado, probando múltiples alias
+  const find = (...frags) => {
+    for(const frag of frags){
+      const nf = norm(frag);
+      const i = normHdr.findIndex(h=>h.includes(nf));
+      if(i>=0) return i;
+    }
+    return -1;
+  };
+
+  const c = {
+    cluster  : find('cluster'),
+    cliente  : find('cliente'),
+    cat      : find('categoria'),
+    productean: find('productean'),  // col A: Dim_Producto[ProductEAN] — para mostrar en tablas
+    ean2     : find('[ean]','ean'),   // col B: Dim_Producto[EAN] — solo como fallback
+    prod     : find('sku'),          // col F: Dim_Producto[SKU] — clave de cruce con Quiebres
+    pdvDesc  : find('puntodeventadesc'),
+    pdvId    : find('puntodeventa_id','puntodeventaid'),
+    nroMes   : find('nromes'),
+    mes      : find('mes'),
+    semMes   : find('sumsemanames'),
+    quiebre  : find('averagequiebre'),
+    neg      : find('negocio')
+  };
+  // Si ProductEAN y EAN apuntan a la misma columna, desactivar fallback
+  if(c.productean>=0 && c.productean===c.ean2) c.ean2=-1;
+
+  // ── Mostrar diagnóstico siempre ──
+  const colStatus = (label,idx) =>
+    idx>=0 ? `<span style="color:#1B7A3E">✓ ${label} → col ${idx} (${hdr[idx]})</span>`
+           : `<span style="color:#C62828">✗ ${label} NO ENCONTRADO</span>`;
+
+  const critical = ['quiebre','semMes','nroMes'];
+  const hasCritical = critical.every(k=>c[k]>=0);
+
+  const diagHTML =
+    `<b>Hoja:</b> "${sheetName}" &nbsp;|&nbsp; <b>Fila encabezado:</b> ${hi} &nbsp;|&nbsp; <b>Score:</b> ${bestScore}/11<br>` +
+    `<b>Columnas detectadas:</b><br>` +
+    [['AverageQuiebre','quiebre'],['SumSemanaMes','semMes'],['NroMes','nroMes'],
+     ['Mes','mes'],['PuntoDeVentaDesc','pdvDesc'],['ProductEAN','ean'],
+     ['SKU','prod'],['Negocio','neg'],['Categoria','cat'],['Cliente','cliente'],['Cluster','cluster']]
+     .map(([label,key])=>colStatus(label,c[key])).join('<br>');
+
+  if(!hasCritical){
+    showMsg('❌ No se pudieron mapear columnas críticas del OSA.<br><br>' + diagHTML +
+      '<br><br><b>Headers leídos (fila ' + hi + '):</b><br>' +
+      hdr.slice(0,25).map((h,i)=>`col${i}: ${h}`).join(' · '), true);
+    return;
+  }
+
+  // ── Parsear filas ──
+  const out=[];
+  for(let i=hi+1;i<rows.length;i++){
+    const r=rows[i]; if(!r) continue;
+    if(r.every(v=>v==null||String(v).trim()==='')) continue;
+
+    const semMesVal = r[c.semMes];
+    if(semMesVal==null) continue;
+
+    const nroMesVal = c.nroMes>=0 ? Number(r[c.nroMes]) : 0;
+    const mesTexto  = c.mes>=0 && r[c.mes]!=null ? str(r[c.mes]) : (nroMesVal? 'Mes '+nroMesVal : '?');
+    const semLabel  = `${mesTexto} Sem ${semMesVal}`;
+    const semSort   = nroMesVal*100 + Number(semMesVal);
+    // productean: valor crudo de col A — se muestra en tablas tal cual
+    const productEanVal = c.productean>=0 ? str(r[c.productean]) : (c.ean2>=0 ? str(r[c.ean2]) : '');
+    const hVal      = Number(r[c.quiebre]);
+    const pdvVal    = (c.pdvDesc>=0 && str(r[c.pdvDesc])) ? str(r[c.pdvDesc]) : (c.pdvId>=0?str(r[c.pdvId]):'');
+
+    out.push({
+      cluster: c.cluster>=0 ? str(r[c.cluster]) : '',
+      cliente: c.cliente>=0 ? str(r[c.cliente]) : '',
+      cat    : c.cat>=0     ? str(r[c.cat])     : '',
+      ean    : productEanVal,           // Dim_Producto[ProductEAN] — para mostrar
+      prod   : c.prod>=0 ? str(r[c.prod]) : '', // Dim_Producto[SKU] — para cruce con Quiebres
+      neg    : c.neg>=0     ? str(r[c.neg])     : '',
+      pdv: pdvVal, mes: mesTexto, sem: semLabel, semSort,
+      H: (hVal===1?1:0)
+    });
+  }
+
+  S.osa = out;
+
+  if(out.length===0){
+    showMsg('⚠️ Columnas mapeadas OK pero 0 filas de datos leídas.<br><br>' + diagHTML, true);
+  } else {
+    showMsg('✅ OSA parseado: <b>' + out.length.toLocaleString('es-AR') + ' filas</b><br><br>' + diagHTML, false);
+  }
+  setPill('pillO',`OSA: ${out.length.toLocaleString('es-AR')} filas ✓`, out.length>0);
+}
+
+/* ---------- Parse Quiebres (por SKU = Material, col A) ---------- */
+function parseQuiebres(wb){
+  const ws=wb.Sheets[wb.SheetNames.find(n=>n.toLowerCase()==='quiebres')];
+  const json=XLSX.utils.sheet_to_json(ws,{defval:null});
+  const dayCols=[]; for(let d=1;d<=31;d++) dayCols.push(String(d).padStart(2,'0'));
+  // días hábiles = columnas día con al menos una Q
+  const working=dayCols.filter(dc=>json.some(r=>String(r[dc]).trim().toUpperCase()==='Q'));
+  const out=[];
+  json.forEach(r=>{
+    const sku=str(r['Material']); if(!sku) return;               // columna A
+    let nQ=0; working.forEach(dc=>{ if(String(r[dc]).trim().toUpperCase()==='Q') nQ++; });
+    out.push({
+      sku, ean:cleanEan(r['Ean 13']),
+      prod:str(r['Texto Breve Material']),
+      cat:str(r['Nivel 4']), neg:str(r['Nivel 2']),
+      nQ, posible:working.length
+    });
+  });
+  S.q={rows:out, workingDays:working.length};
+  setPill('pillQ',`Quiebres: ${out.length} SKU · ${working.length} días hábiles ✓`,true);
+}
+
+const str=v=>v==null?'':String(v).trim();
+const cleanEan=v=>{ if(v==null) return ''; let s=String(v).trim().replace(/\.0+$/,''); return s.replace(/[^0-9]/g,''); };
+function setPill(id,txt,ok){const e=document.getElementById(id);e.textContent=txt;e.classList.toggle('ok',!!ok);}
+
+/* ============================================================
+   BUILD MODEL
+   ============================================================ */
+function showMsg(txt, isError){
+  const el=document.getElementById('loadMsg');
+  el.style.display='block';
+  el.style.background=isError?'rgba(229,57,53,0.08)':'rgba(0,178,227,0.08)';
+  el.style.border=isError?'1px solid rgba(229,57,53,0.3)':'1px solid rgba(0,178,227,0.3)';
+  el.style.borderRadius='10px';
+  el.style.padding='12px 16px';
+  el.style.color=isError?'#C62828':'#0D5F8A';
+  el.innerHTML=txt;
+}
+function tryBuild(){
+  if(!S.osa && !S.q) return;
+  if(S.osa && !S.q){
+    showMsg('✅ OSA cargado (' + S.osa.length.toLocaleString('es-AR') + ' filas). Ahora subí el archivo de <b>Quiebres</b> para ver el dashboard completo.', false);
+    return;
+  }
+  if(!S.osa && S.q){
+    showMsg('✅ Quiebres cargado (' + S.q.rows.length + ' SKUs). Ahora subí el archivo <b>OSA</b> para ver el dashboard completo.', false);
+    return;
+  }
+  build();
+  document.getElementById('loaderCard').classList.add('hidden');
+  document.getElementById('dash').classList.remove('hidden');
+  initFilters(); render();
+}
+
+function build(){
+  // Mapa semLabel -> semSort para ordenar correctamente
+  const semSortMap=new Map();
+  S.osa.forEach(r=>{ if(!semSortMap.has(r.sem)) semSortMap.set(r.sem,r.semSort); });
+
+  // Quiebres por SKU (Material = col A de Quiebres)
+  // Cruce: OSA.prod (Dim_Producto[SKU]) <-> Quiebres.sku (Material)
+  const skuQ=new Map();
+  S.q.rows.forEach(r=>{
+    if(!r.sku) return;
+    if(!skuQ.has(r.sku)) skuQ.set(r.sku,{sku:r.sku,nQ:0,posible:0});
+    const o=skuQ.get(r.sku); o.nQ+=r.nQ; o.posible+=r.posible;
+  });
+
+  DATA={ osa:S.osa, skuQ, workingDays:S.q.workingDays, semSortMap };
+  const sems=[...new Set(S.osa.map(r=>r.sem))].sort(semCmp);
+  document.getElementById('period').textContent = sems.length? sems[0]+'  →  '+sems[sems.length-1] : '';
+}
+
+// semCmp: ordena semanas por semSort numérico almacenado en DATA.semSortMap
+// (NroMes*100 + SumSemanaMes, calculado al parsear)
+function semCmp(a,b){
+  if(!DATA||!DATA.semSortMap) return String(a).localeCompare(String(b));
+  return (DATA.semSortMap.get(a)||0)-(DATA.semSortMap.get(b)||0);
+}
+
+/* ============================================================
+   FILTERS
+   ============================================================ */
+const FILT={cluster:'',cliente:'',neg:'',cat:'',sem:''};
+function uniq(arr){return [...new Set(arr.filter(Boolean))];}
+function initFilters(){
+  fill('fCluster',uniq(DATA.osa.map(r=>r.cluster)).sort());
+  fill('fCliente',uniq(DATA.osa.map(r=>r.cliente)).sort());
+  fill('fNegocio',uniq(DATA.osa.map(r=>r.neg)).sort());
+  fill('fCategoria',uniq(DATA.osa.map(r=>r.cat)).sort());
+  fill('fSemana',uniq(DATA.osa.map(r=>r.sem)).sort(semCmp));
+  const map={fCluster:'cluster',fCliente:'cliente',fNegocio:'neg',fCategoria:'cat',fSemana:'sem'};
+  Object.keys(map).forEach(id=>document.getElementById(id).onchange=e=>{FILT[map[id]]=e.target.value;render();});
+  document.getElementById('btnReset').onclick=()=>{
+    Object.keys(FILT).forEach(k=>FILT[k]='');
+    ['fCluster','fCliente','fNegocio','fCategoria','fSemana'].forEach(i=>document.getElementById(i).value='');
+    render();
+  };
+}
+function fill(id,vals){document.getElementById(id).innerHTML='<option value="">Todos</option>'+vals.map(v=>`<option>${v}</option>`).join('');}
+function passOsa(r){
+  return (!FILT.cluster||r.cluster===FILT.cluster)&&(!FILT.cliente||r.cliente===FILT.cliente)
+    &&(!FILT.neg||r.neg===FILT.neg)&&(!FILT.cat||r.cat===FILT.cat)&&(!FILT.sem||r.sem===FILT.sem);
+}
+
+/* ============================================================
+   AGGREGATION  (OSA fórmula literal: #(H=1)/total)
+   Cruce de quiebres: OSA.prod (Dim_Producto[SKU]) <-> Quiebres.sku (Material)
+   ============================================================ */
+function osaPct(rows){ if(!rows.length) return null; return rows.reduce((a,r)=>a+r.H,0)/rows.length*100; }
+// quiebreAgg: suma nQ/posible de todos los SKUs únicos en el conjunto de filas OSA
+function quiebreAgg(rows){
+  const skus=new Set(rows.map(r=>r.prod).filter(Boolean));
+  let nQ=0,pos=0;
+  skus.forEach(s=>{const o=DATA.skuQ.get(s); if(o){nQ+=o.nQ;pos+=o.posible;}});
+  return {nQ,pos,pct: pos? nQ/pos*100 : null};
+}
+// skuQty: igual pero recibe un Set de SKUs directamente
+function skuQty(skus){let nQ=0,pos=0;skus.forEach(s=>{const o=DATA.skuQ.get(s);if(o){nQ+=o.nQ;pos+=o.posible;}});return {nQ,pos};}
+
+/* ============================================================
+   RENDER
+   ============================================================ */
+function render(){
+  const rows=DATA.osa.filter(passOsa);
+  const o=osaPct(rows); const q=quiebreAgg(rows);
+  document.getElementById('kpiOsa').textContent=fmtPct(o);
+  document.getElementById('kpiOsaMeta').textContent=`${fmtInt(rows.length)} obs · SUM(AverageQuiebre=1)/COUNT`;
+  document.getElementById('kpiQ').textContent=fmtPct(q.pct);
+  document.getElementById('kpiQMeta').textContent=`${fmtInt(q.nQ)} quiebres / ${fmtInt(q.pos)} posibles`;
+  renderTree(rows);
+  renderTops();
+}
+
+/* ---------- Hierarchical table ---------- */
+const EXPANDED=new Set();
+function renderTree(rows){
+  const sems=uniq(rows.map(r=>r.sem)).sort(semCmp);
+  let h='<tr><th>Cliente / Punto de Venta / Categoría / Producto</th>';
+  sems.forEach(s=>h+=`<th>${s}<br><span class="dim" style="font-size:9px">%OSA · %Q</span></th>`);
+  h+='</tr>';
+  document.getElementById('treeHead').innerHTML=h;
+  const body=document.getElementById('treeBody'); body.innerHTML='';
+  if(!rows.length){ body.innerHTML=`<tr><td colspan="${sems.length+1}" class="empty">Sin datos para los filtros aplicados</td></tr>`; return; }
+
+  const byCli=groupBy(rows,r=>r.cliente);
+  Object.keys(byCli).sort().forEach(cli=>{
+    addRow(body,0,'cli|'+cli,cli,'CLIENTE',byCli[cli],sems,false);
+    if(EXPANDED.has('cli|'+cli)){
+      const byTienda=groupBy(byCli[cli],r=>r.pdv);
+      Object.keys(byTienda).sort().forEach(t=>{
+        const key='tie|'+cli+'|'+t;
+        addRow(body,1,key,t,'PDV',byTienda[t],sems,false);
+        if(EXPANDED.has(key)){
+          const byCat=groupBy(byTienda[t],r=>r.cat);
+          Object.keys(byCat).sort().forEach(cat=>{
+            const ckey='cat|'+cli+'|'+t+'|'+cat;
+            addRow(body,2,ckey,cat,'CATEGORÍA',byCat[cat],sems,false);
+            if(EXPANDED.has(ckey)){
+              // Agrupamos por SKU (Dim_Producto[SKU] = col F de OSA = Material de Quiebres)
+              // Mostramos ProductEAN como label visible
+              const bySku=groupBy(byCat[cat],r=>r.prod);
+              Object.keys(bySku).sort().forEach(sku=>{
+                const nm=bySku[sku][0].ean||sku;  // mostrar ProductEAN
+                addRow(body,3,'sku|'+cli+'|'+t+'|'+cat+'|'+sku,nm,'EAN',bySku[sku],sems,true);
+              });
+            }
+          });
+        }
+      });
+    }
+  });
+}
+
+function addRow(body,depth,key,name,badge,rows,sems,isSku){
+  const tr=document.createElement('tr');
+  const expandable=!isSku;
+  const open=EXPANDED.has(key);
+  const pad=depth*16;
+  let cells=`<td class="${expandable?'exp':''}" ${expandable?`data-key="${key}"`:''} style="padding-left:${10+pad}px">
+      <span class="lvl-name">
+        ${expandable?`<span class="tw">${open?'▾':'▸'}</span>`:'<span class="tw"> </span>'}
+        <span class="pname" title="${name}">${name}</span><span class="badge">${badge}</span>
+      </span></td>`;
+  sems.forEach(s=>{
+    const sub=rows.filter(r=>r.sem===s);
+    const o=osaPct(sub);
+    if(isSku){
+      const {nQ}=skuQty(new Set(sub.map(r=>r.prod)));  // cantidad de quiebres por SKU
+      cells+=`<td><span class="osaC">${fmtPct(o)}</span> <span class="dim">·</span> <span class="numC">${sub.length?fmtInt(nQ):'—'}</span></td>`;
+    }else{
+      const q=quiebreAgg(sub);
+      cells+=`<td><span class="osaC">${fmtPct(o)}</span> <span class="dim">·</span> <span class="qC">${fmtPct(q.pct)}</span></td>`;
+    }
+  });
+  tr.innerHTML=cells;
+  if(expandable){
+    tr.querySelector('.exp').onclick=()=>{ EXPANDED.has(key)?EXPANDED.delete(key):EXPANDED.add(key); render(); };
+  }
+  body.appendChild(tr);
+}
+function groupBy(arr,fn){const m={};arr.forEach(x=>{const k=fn(x);(m[k]=m[k]||[]).push(x);});return m;}
+
+/* ---------- Top tables (mes cerrado = último MesKey) ---------- */
+function closedMonthRows(){
+  // Ordenar meses por NroMes (el mayor = mes más reciente)
+  const mesSort=new Map();
+  DATA.osa.forEach(r=>{ if(!mesSort.has(r.mes)) mesSort.set(r.mes, Math.floor(r.semSort/100)); });
+  const meses=uniq(DATA.osa.map(r=>r.mes)).sort((a,b)=>(mesSort.get(a)||0)-(mesSort.get(b)||0));
+  const last=meses[meses.length-1];
+  return {rows:DATA.osa.filter(r=>r.mes===last && passClusterClienteNeg(r)), mes:last};
+}
+function passClusterClienteNeg(r){
+  return (!FILT.cluster||r.cluster===FILT.cluster)&&(!FILT.cliente||r.cliente===FILT.cliente)
+    &&(!FILT.neg||r.neg===FILT.neg)&&(!FILT.cat||r.cat===FILT.cat);
+}
+
+function renderTops(){
+  const {rows}=closedMonthRows();
+
+  // productos = agrupados por SKU (Dim_Producto[SKU]), mostrando ProductEAN como label
+  const byProd=groupBy(rows,r=>r.prod);
+  const prodStats=Object.keys(byProd).map(sku=>{
+    const rs=byProd[sku]; const q=DATA.skuQ.get(sku);
+    return { sku, ean: rs[0].ean||sku, osa:osaPct(rs),
+             nQ: q?q.nQ:0, posible:q?q.posible:0,
+             qShare: q&&q.posible? q.nQ/q.posible : 0 };
+  });
+
+  // T2: top 10 productos con más quiebres — label = ProductEAN
+  const t2=[...prodStats].filter(p=>p.nQ>0).sort((a,b)=>b.nQ-a.nQ).slice(0,10);
+  drawTop('t2',['ProductEAN','# Quiebres','% Quiebre','% OSA'],
+    t2.map((p,i)=>[rank(i)+pn(p.ean),`<span class="numC">${fmtInt(p.nQ)}</span>`,
+      `<span class="qC">${fmtPct(p.posible?p.nQ/p.posible*100:null)}</span>`,`<span class="osaC">${fmtPct(p.osa)}</span>`]));
+
+  // T1: top 10 peor %OSA — label = ProductEAN
+  const eligible=prodStats.filter(p=>p.qShare<=0.5 && p.osa!=null);
+  const t1=[...eligible].sort((a,b)=>a.osa-b.osa).slice(0,10);
+  drawTop('t1',['ProductEAN','% OSA','# Quiebres','% Quiebre'],
+    t1.map((p,i)=>[rank(i)+pn(p.ean),`<span class="osaC">${fmtPct(p.osa)}</span>`,
+      `<span class="numC">${fmtInt(p.nQ)}</span>`,`<span class="qC">${fmtPct(p.posible?p.nQ/p.posible*100:null)}</span>`]));
+
+  // tiendas
+  const byTie=groupBy(rows,r=>r.pdv);
+  const tieStats=Object.keys(byTie).map(pdv=>{
+    const rs=byTie[pdv]; const q=quiebreAgg(rs);
+    return { pdv, cli:rs[0].cliente, osa:osaPct(rs), nQ:q.nQ, qpct:q.pct };
+  });
+
+  const t3=[...tieStats].filter(t=>t.osa!=null).sort((a,b)=>a.osa-b.osa).slice(0,10);
+  drawTop('t3',['Punto de Venta','% OSA','# Quiebres','% Quiebre'],
+    t3.map((t,i)=>[rank(i)+pn(t.pdv+(t.cli?' · '+t.cli:'')),`<span class="osaC">${fmtPct(t.osa)}</span>`,
+      `<span class="numC">${fmtInt(t.nQ)}</span>`,`<span class="qC">${fmtPct(t.qpct)}</span>`]));
+
+  const t4=[...tieStats].sort((a,b)=>b.nQ-a.nQ).slice(0,10);
+  drawTop('t4',['Punto de Venta','# Quiebres','% Quiebre','% OSA'],
+    t4.map((t,i)=>[rank(i)+pn(t.pdv+(t.cli?' · '+t.cli:'')),`<span class="numC">${fmtInt(t.nQ)}</span>`,
+      `<span class="qC">${fmtPct(t.qpct)}</span>`,`<span class="osaC">${fmtPct(t.osa)}</span>`]));
+}
+const rank=i=>`<span class="rank">${i+1}</span>`;
+const pn=n=>`<span class="pname" title="${n}">${n}</span>`;
+function drawTop(id,headers,rows){
+  const t=document.getElementById(id);
+  if(!rows.length){t.innerHTML=`<tr><td class="empty">Sin datos</td></tr>`;return;}
+  t.innerHTML='<thead><tr>'+headers.map(h=>`<th>${h}</th>`).join('')+'</tr></thead><tbody>'+
+    rows.map(r=>'<tr>'+r.map(c=>`<td>${c}</td>`).join('')+'</tr>').join('')+'</tbody>';
+}
+</script>
+</body>
+</html>
